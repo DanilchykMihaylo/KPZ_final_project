@@ -14,9 +14,12 @@ namespace Checkers.ViewModels
         private string _statusMessage = string.Empty;
         private int _whitePieceCount;
         private int _blackPieceCount;
+        private double _cellSize;
         private List<Move> _availableMoves = [];
 
         public ObservableCollection<CellViewModel> Cells { get; } = [];
+        public ObservableCollection<PieceViewModel> Pieces { get; } = [];
+
         public ICommand CellClickCommand { get; }
         public ICommand NewGameCommand { get; }
 
@@ -38,6 +41,16 @@ namespace Checkers.ViewModels
             private set => SetField(ref _blackPieceCount, value);
         }
 
+        public double CellSize
+        {
+            get => _cellSize;
+            set
+            {
+                if (SetField(ref _cellSize, value))
+                    RecalculatePiecePositions();
+            }
+        }
+
         public GameViewModel(IGameService gameService)
         {
             _gameService = gameService;
@@ -57,7 +70,9 @@ namespace Checkers.ViewModels
         private void StartGame()
         {
             _gameService.StartNewGame();
-            SyncBoardState();
+            ClearSelection();
+            ClearLastMoveHighlight();
+            SyncPieces();
             UpdateStatus();
             UpdatePieceCounts();
             HighlightForcedCaptures();
@@ -98,7 +113,6 @@ namespace Checkers.ViewModels
 
             _selectedCell = cell;
             cell.IsSelected = true;
-
             _availableMoves = moves.ToList();
 
             foreach (var move in _availableMoves)
@@ -107,10 +121,10 @@ namespace Checkers.ViewModels
 
         private void TryMakeMove(CellViewModel targetCell)
         {
-            var isHighlighted = _availableMoves
+            var isValidTarget = _availableMoves
                 .Any(m => m.To.Row == targetCell.Row && m.To.Col == targetCell.Col);
 
-            if (!isHighlighted)
+            if (!isValidTarget)
             {
                 ClearSelection();
                 TrySelectPiece(targetCell);
@@ -120,22 +134,28 @@ namespace Checkers.ViewModels
             var from = new Position(_selectedCell!.Row, _selectedCell.Col);
             var to = new Position(targetCell.Row, targetCell.Col);
 
+            var movingPiece = Pieces.FirstOrDefault(p => p.Row == from.Row && p.Col == from.Col);
+
             ClearSelection();
             ClearLastMoveHighlight();
 
-            var move = new Move(from, to);
-            bool success = _gameService.TryMakeMove(move);
+            GetCell(from.Row, from.Col).IsLastMoveFrom = true;
+            GetCell(to.Row, to.Col).IsLastMoveTo = true;
 
-            if (success)
+            if (movingPiece is not null)
             {
-                GetCell(from.Row, from.Col).IsLastMoveFrom = true;
-                GetCell(to.Row, to.Col).IsLastMoveTo = true;
-
-                SyncBoardState();
-                UpdateStatus();
-                UpdatePieceCounts();
-                HighlightForcedCaptures();
+                movingPiece.Row = to.Row;
+                movingPiece.Col = to.Col;
+                movingPiece.X = ColToX(to.Col);
+                movingPiece.Y = RowToY(to.Row);
             }
+
+            _gameService.TryMakeMove(new Move(from, to));
+
+            SyncPieces();
+            UpdateStatus();
+            UpdatePieceCounts();
+            HighlightForcedCaptures();
         }
 
         private void ClearSelection()
@@ -168,31 +188,55 @@ namespace Checkers.ViewModels
                 return;
 
             var allMoves = _gameService.GetAllAvailableMoves();
-            bool hasCaptures = allMoves.Any(m => m.IsCapture);
-
-            if (!hasCaptures)
+            if (!allMoves.Any(m => m.IsCapture))
                 return;
 
-            var capturePositions = allMoves
-                .Where(m => m.IsCapture)
-                .Select(m => m.From)
-                .Distinct()
-                .ToList();
-
-            foreach (var pos in capturePositions)
+            foreach (var pos in allMoves.Where(m => m.IsCapture).Select(m => m.From).Distinct())
                 GetCell(pos.Row, pos.Col).IsForcedCapture = true;
         }
 
-        private void SyncBoardState()
+        private void SyncPieces()
         {
-            foreach (var cell in Cells)
+            var boardPieces = _gameService.Board.GetAllPieces().ToList();
+
+            var toRemove = Pieces
+                .Where(p => !boardPieces.Any(bp => bp.Position.Row == p.Row && bp.Position.Col == p.Col))
+                .ToList();
+
+            foreach (var piece in toRemove)
+                Pieces.Remove(piece);
+
+            foreach (var (position, boardPiece) in boardPieces)
             {
-                var boardPiece = _gameService.Board.GetPiece(new Position(cell.Row, cell.Col));
-                cell.Piece = boardPiece is null ? null : new PieceViewModel
+                var existing = Pieces.FirstOrDefault(p => p.Row == position.Row && p.Col == position.Col);
+
+                if (existing is not null)
                 {
+                    existing.Color = boardPiece.Color;
+                    existing.Type = boardPiece.Type;
+                    continue;
+                }
+
+                var vm = new PieceViewModel
+                {
+                    Row = position.Row,
+                    Col = position.Col,
                     Color = boardPiece.Color,
-                    Type = boardPiece.Type
+                    Type = boardPiece.Type,
+                    X = ColToX(position.Col),
+                    Y = RowToY(position.Row)
                 };
+
+                Pieces.Add(vm);
+            }
+        }
+
+        private void RecalculatePiecePositions()
+        {
+            foreach (var piece in Pieces)
+            {
+                piece.X = ColToX(piece.Col);
+                piece.Y = RowToY(piece.Row);
             }
         }
 
@@ -214,6 +258,9 @@ namespace Checkers.ViewModels
             WhitePieceCount = _gameService.Board.GetPiecesByColor(PieceColor.White).Count();
             BlackPieceCount = _gameService.Board.GetPiecesByColor(PieceColor.Black).Count();
         }
+
+        private double ColToX(int col) => col * _cellSize;
+        private double RowToY(int row) => row * _cellSize;
 
         private CellViewModel GetCell(int row, int col) =>
             Cells[row * Board.Size + col];
