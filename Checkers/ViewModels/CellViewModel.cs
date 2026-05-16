@@ -4,6 +4,9 @@
     {
         private bool _isSelected;
         private bool _isHighlighted;
+        private bool _isLastMoveFrom;
+        private bool _isLastMoveTo;
+        private bool _isForcedCapture;
         private PieceViewModel? _piece;
 
         public int Row { get; }
@@ -22,6 +25,24 @@
             set => SetField(ref _isHighlighted, value);
         }
 
+        public bool IsLastMoveFrom
+        {
+            get => _isLastMoveFrom;
+            set => SetField(ref _isLastMoveFrom, value);
+        }
+
+        public bool IsLastMoveTo
+        {
+            get => _isLastMoveTo;
+            set => SetField(ref _isLastMoveTo, value);
+        }
+
+        public bool IsForcedCapture
+        {
+            get => _isForcedCapture;
+            set => SetField(ref _isForcedCapture, value);
+        }
+
         public PieceViewModel? Piece
         {
             get => _piece;
@@ -34,6 +55,7 @@
                 }
             }
         }
+
         public bool HasPiece => _piece is not null;
         public bool PieceIsKing => _piece?.IsKing ?? false;
 

@@ -3,8 +3,6 @@ using Checkers.Models.Enums;
 
 namespace Checkers.Services
 {
-    // Orchestrates the game: applies moves, enforces rules,
-    // handles promotions, and determines game-over conditions.
     public class GameService : IGameService
     {
         private readonly IMoveGenerator _moveGenerator;
@@ -44,6 +42,9 @@ namespace Checkers.Services
 
         public IReadOnlyList<Move> GetAvailableMovesForPiece(Position position) =>
             _moveGenerator.GetMovesForPiece(Board, position);
+
+        public IReadOnlyList<Move> GetAllAvailableMoves() =>
+            _moveGenerator.GetAvailableMoves(Board, CurrentTurn);
 
         private void ApplyMove(Move move)
         {
@@ -91,10 +92,10 @@ namespace Checkers.Services
 
             GameState = (whiteHasPieces, blackHasPieces, whiteMoves.Count, blackMoves.Count) switch
             {
-                (false, _, _, _) or (_, _, 0, _) when CurrentTurn == PieceColor.White
-                    => GameState.BlackWins,
-                (_, false, _, _) or (_, _, _, 0) when CurrentTurn == PieceColor.Black
-                    => GameState.WhiteWins,
+                (false, _, _, _) => GameState.BlackWins,
+                (_, false, _, _) => GameState.WhiteWins,
+                ({ }, { }, 0, _) when CurrentTurn == PieceColor.White => GameState.BlackWins,
+                ({ }, { }, _, 0) when CurrentTurn == PieceColor.Black => GameState.WhiteWins,
                 _ => GameState.InProgress
             };
         }
