@@ -12,6 +12,8 @@ namespace Checkers.ViewModels
 
         private CellViewModel? _selectedCell;
         private string _statusMessage = string.Empty;
+        private int _whitePieceCount;
+        private int _blackPieceCount;
         private List<Move> _availableMoves = [];
 
         public ObservableCollection<CellViewModel> Cells { get; } = [];
@@ -24,13 +26,23 @@ namespace Checkers.ViewModels
             private set => SetField(ref _statusMessage, value);
         }
 
+        public int WhitePieceCount
+        {
+            get => _whitePieceCount;
+            private set => SetField(ref _whitePieceCount, value);
+        }
+
+        public int BlackPieceCount
+        {
+            get => _blackPieceCount;
+            private set => SetField(ref _blackPieceCount, value);
+        }
+
         public GameViewModel(IGameService gameService)
         {
             _gameService = gameService;
-
             CellClickCommand = new RelayCommand<CellViewModel>(OnCellClicked);
             NewGameCommand = new RelayCommand(OnNewGame);
-
             InitializeCells();
             StartGame();
         }
@@ -47,6 +59,8 @@ namespace Checkers.ViewModels
             _gameService.StartNewGame();
             SyncBoardState();
             UpdateStatus();
+            UpdatePieceCounts();
+            HighlightForcedCaptures();
         }
 
         private void OnNewGame() => StartGame();
@@ -76,14 +90,16 @@ namespace Checkers.ViewModels
             if (piece is null || piece.Color != _gameService.CurrentTurn)
                 return;
 
+            var moves = _gameService.GetAvailableMovesForPiece(new Position(cell.Row, cell.Col));
+            if (moves.Count == 0)
+                return;
+
             ClearSelection();
 
             _selectedCell = cell;
             cell.IsSelected = true;
 
-            _availableMoves = _gameService
-                .GetAvailableMovesForPiece(new Position(cell.Row, cell.Col))
-                .ToList();
+            _availableMoves = moves.ToList();
 
             foreach (var move in _availableMoves)
                 GetCell(move.To.Row, move.To.Col).IsHighlighted = true;
@@ -91,17 +107,34 @@ namespace Checkers.ViewModels
 
         private void TryMakeMove(CellViewModel targetCell)
         {
+            var isHighlighted = _availableMoves
+                .Any(m => m.To.Row == targetCell.Row && m.To.Col == targetCell.Col);
+
+            if (!isHighlighted)
+            {
+                ClearSelection();
+                TrySelectPiece(targetCell);
+                return;
+            }
+
             var from = new Position(_selectedCell!.Row, _selectedCell.Col);
             var to = new Position(targetCell.Row, targetCell.Col);
-            var move = new Move(from, to);
 
-            bool success = _gameService.TryMakeMove(move);
             ClearSelection();
+            ClearLastMoveHighlight();
+
+            var move = new Move(from, to);
+            bool success = _gameService.TryMakeMove(move);
 
             if (success)
             {
+                GetCell(from.Row, from.Col).IsLastMoveFrom = true;
+                GetCell(to.Row, to.Col).IsLastMoveTo = true;
+
                 SyncBoardState();
                 UpdateStatus();
+                UpdatePieceCounts();
+                HighlightForcedCaptures();
             }
         }
 
@@ -115,6 +148,39 @@ namespace Checkers.ViewModels
 
             _selectedCell = null;
             _availableMoves.Clear();
+        }
+
+        private void ClearLastMoveHighlight()
+        {
+            foreach (var cell in Cells)
+            {
+                cell.IsLastMoveFrom = false;
+                cell.IsLastMoveTo = false;
+            }
+        }
+
+        private void HighlightForcedCaptures()
+        {
+            foreach (var cell in Cells)
+                cell.IsForcedCapture = false;
+
+            if (_gameService.GameState != GameState.InProgress)
+                return;
+
+            var allMoves = _gameService.GetAllAvailableMoves();
+            bool hasCaptures = allMoves.Any(m => m.IsCapture);
+
+            if (!hasCaptures)
+                return;
+
+            var capturePositions = allMoves
+                .Where(m => m.IsCapture)
+                .Select(m => m.From)
+                .Distinct()
+                .ToList();
+
+            foreach (var pos in capturePositions)
+                GetCell(pos.Row, pos.Col).IsForcedCapture = true;
         }
 
         private void SyncBoardState()
@@ -134,13 +200,19 @@ namespace Checkers.ViewModels
         {
             StatusMessage = _gameService.GameState switch
             {
-                GameState.WhiteWins => "Білі перемогли!",
-                GameState.BlackWins => "Чорні перемогли!",
-                GameState.Draw => "Нічия!",
+                GameState.WhiteWins => " Білі перемогли!",
+                GameState.BlackWins => " Чорні перемогли!",
+                GameState.Draw => " Нічия!",
                 _ => _gameService.CurrentTurn == PieceColor.White
                     ? "Хід: Білі "
                     : "Хід: Чорні "
             };
+        }
+
+        private void UpdatePieceCounts()
+        {
+            WhitePieceCount = _gameService.Board.GetPiecesByColor(PieceColor.White).Count();
+            BlackPieceCount = _gameService.Board.GetPiecesByColor(PieceColor.Black).Count();
         }
 
         private CellViewModel GetCell(int row, int col) =>

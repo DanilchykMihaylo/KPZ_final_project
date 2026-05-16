@@ -12,5 +12,6 @@ namespace Checkers.Services
         void StartNewGame();
         bool TryMakeMove(Move move);
         IReadOnlyList<Move> GetAvailableMovesForPiece(Position position);
+        IReadOnlyList<Move> GetAllAvailableMoves();
     }
 }
