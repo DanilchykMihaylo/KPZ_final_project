@@ -10,6 +10,8 @@ namespace Checkers.Services
         public Board Board { get; private set; } = new Board();
         public PieceColor CurrentTurn { get; private set; } = PieceColor.White;
         public GameState GameState { get; private set; } = GameState.InProgress;
+        public int WhiteScore { get; private set; }
+        public int BlackScore { get; private set; }
 
         public GameService(IMoveGenerator moveGenerator)
         {
@@ -23,6 +25,35 @@ namespace Checkers.Services
             CurrentTurn = PieceColor.White;
             GameState = GameState.InProgress;
         }
+
+        public void RestoreFromRecord(GameRecord record)
+        {
+            Board = new Board();
+            foreach (var cell in record.Cells)
+                Board.SetPiece(new Position(cell.Row, cell.Col), new Piece(cell.Color, cell.Type));
+
+            CurrentTurn = record.CurrentTurn;
+            GameState = record.GameState;
+            WhiteScore = record.WhiteScore;
+            BlackScore = record.BlackScore;
+        }
+
+        public GameRecord CreateRecord(int elapsedSeconds) => new()
+        {
+            CurrentTurn = CurrentTurn,
+            GameState = GameState,
+            ElapsedSeconds = elapsedSeconds,
+            WhiteScore = WhiteScore,
+            BlackScore = BlackScore,
+            Cells = Board.GetAllPieces()
+                .Select(p => new CellRecord
+                {
+                    Row = p.Position.Row,
+                    Col = p.Position.Col,
+                    Color = p.Piece.Color,
+                    Type = p.Piece.Type
+                }).ToList()
+        };
 
         public bool TryMakeMove(Move move)
         {
@@ -90,7 +121,7 @@ namespace Checkers.Services
             bool whiteHasPieces = Board.GetPiecesByColor(PieceColor.White).Any();
             bool blackHasPieces = Board.GetPiecesByColor(PieceColor.Black).Any();
 
-            GameState = (whiteHasPieces, blackHasPieces, whiteMoves.Count, blackMoves.Count) switch
+            var newState = (whiteHasPieces, blackHasPieces, whiteMoves.Count, blackMoves.Count) switch
             {
                 (false, _, _, _) => GameState.BlackWins,
                 (_, false, _, _) => GameState.WhiteWins,
@@ -98,6 +129,14 @@ namespace Checkers.Services
                 ({ }, { }, _, 0) when CurrentTurn == PieceColor.Black => GameState.WhiteWins,
                 _ => GameState.InProgress
             };
+
+            if (newState != GameState.InProgress && GameState == GameState.InProgress)
+            {
+                if (newState == GameState.WhiteWins) WhiteScore++;
+                if (newState == GameState.BlackWins) BlackScore++;
+            }
+
+            GameState = newState;
         }
     }
 }

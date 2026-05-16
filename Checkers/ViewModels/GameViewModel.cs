@@ -1,5 +1,6 @@
 ﻿using System.Collections.ObjectModel;
 using System.Windows.Input;
+using System.Windows.Threading;
 using Checkers.Models;
 using Checkers.Models.Enums;
 using Checkers.Services;
@@ -9,11 +10,15 @@ namespace Checkers.ViewModels
     public class GameViewModel : BaseViewModel
     {
         private readonly IGameService _gameService;
+        private readonly IGamePersistenceService _persistenceService;
+        private readonly DispatcherTimer _timer;
 
         private CellViewModel? _selectedCell;
         private string _statusMessage = string.Empty;
         private int _whitePieceCount;
         private int _blackPieceCount;
+        private int _elapsedSeconds;
+        private bool _canLoad;
         private double _cellSize;
         private List<Move> _availableMoves = [];
 
@@ -22,6 +27,8 @@ namespace Checkers.ViewModels
 
         public ICommand CellClickCommand { get; }
         public ICommand NewGameCommand { get; }
+        public ICommand SaveGameCommand { get; }
+        public ICommand LoadGameCommand { get; }
 
         public string StatusMessage
         {
@@ -41,6 +48,25 @@ namespace Checkers.ViewModels
             private set => SetField(ref _blackPieceCount, value);
         }
 
+        public int ElapsedSeconds
+        {
+            get => _elapsedSeconds;
+            private set
+            {
+                if (SetField(ref _elapsedSeconds, value))
+                    OnPropertyChanged(nameof(TimerDisplay));
+            }
+        }
+
+        public string TimerDisplay =>
+            TimeSpan.FromSeconds(_elapsedSeconds).ToString(@"mm\:ss");
+
+        public bool CanLoad
+        {
+            get => _canLoad;
+            private set => SetField(ref _canLoad, value);
+        }
+
         public double CellSize
         {
             get => _cellSize;
@@ -51,12 +77,24 @@ namespace Checkers.ViewModels
             }
         }
 
-        public GameViewModel(IGameService gameService)
+        public int WhiteScore => _gameService.WhiteScore;
+        public int BlackScore => _gameService.BlackScore;
+
+        public GameViewModel(IGameService gameService, IGamePersistenceService persistenceService)
         {
             _gameService = gameService;
+            _persistenceService = persistenceService;
+
+            _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            _timer.Tick += (_, _) => ElapsedSeconds++;
+
             CellClickCommand = new RelayCommand<CellViewModel>(OnCellClicked);
             NewGameCommand = new RelayCommand(OnNewGame);
+            SaveGameCommand = new RelayCommand(OnSaveGame);
+            LoadGameCommand = new RelayCommand(OnLoadGame);
+
             InitializeCells();
+            CanLoad = _persistenceService.SaveExists();
             StartGame();
         }
 
@@ -70,15 +108,42 @@ namespace Checkers.ViewModels
         private void StartGame()
         {
             _gameService.StartNewGame();
+            ElapsedSeconds = 0;
+            _timer.Start();
             ClearSelection();
             ClearLastMoveHighlight();
             SyncPieces();
             UpdateStatus();
             UpdatePieceCounts();
+            UpdateScores();
             HighlightForcedCaptures();
         }
 
         private void OnNewGame() => StartGame();
+
+        private void OnSaveGame()
+        {
+            var record = _gameService.CreateRecord(ElapsedSeconds);
+            _persistenceService.Save(record);
+            CanLoad = true;
+        }
+
+        private void OnLoadGame()
+        {
+            var record = _persistenceService.Load();
+            if (record is null) return;
+
+            _gameService.RestoreFromRecord(record);
+            ElapsedSeconds = record.ElapsedSeconds;
+            _timer.Start();
+            ClearSelection();
+            ClearLastMoveHighlight();
+            SyncPieces();
+            UpdateStatus();
+            UpdatePieceCounts();
+            UpdateScores();
+            HighlightForcedCaptures();
+        }
 
         private void OnCellClicked(CellViewModel? cell)
         {
@@ -86,17 +151,11 @@ namespace Checkers.ViewModels
                 return;
 
             if (_selectedCell is null)
-            {
                 TrySelectPiece(cell);
-            }
             else if (_selectedCell.Equals(cell))
-            {
                 ClearSelection();
-            }
             else
-            {
                 TryMakeMove(cell);
-            }
         }
 
         private void TrySelectPiece(CellViewModel cell)
@@ -155,7 +214,11 @@ namespace Checkers.ViewModels
             SyncPieces();
             UpdateStatus();
             UpdatePieceCounts();
+            UpdateScores();
             HighlightForcedCaptures();
+
+            if (_gameService.GameState != GameState.InProgress)
+                _timer.Stop();
         }
 
         private void ClearSelection()
@@ -217,7 +280,7 @@ namespace Checkers.ViewModels
                     continue;
                 }
 
-                var vm = new PieceViewModel
+                Pieces.Add(new PieceViewModel
                 {
                     Row = position.Row,
                     Col = position.Col,
@@ -225,9 +288,7 @@ namespace Checkers.ViewModels
                     Type = boardPiece.Type,
                     X = ColToX(position.Col),
                     Y = RowToY(position.Row)
-                };
-
-                Pieces.Add(vm);
+                });
             }
         }
 
@@ -257,6 +318,12 @@ namespace Checkers.ViewModels
         {
             WhitePieceCount = _gameService.Board.GetPiecesByColor(PieceColor.White).Count();
             BlackPieceCount = _gameService.Board.GetPiecesByColor(PieceColor.Black).Count();
+        }
+
+        private void UpdateScores()
+        {
+            OnPropertyChanged(nameof(WhiteScore));
+            OnPropertyChanged(nameof(BlackScore));
         }
 
         private double ColToX(int col) => col * _cellSize;
