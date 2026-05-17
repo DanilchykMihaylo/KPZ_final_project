@@ -6,6 +6,7 @@ namespace Checkers.Services
     public class GameService : IGameService
     {
         private readonly IMoveGenerator _moveGenerator;
+        private int _boardSize;
 
         public Board Board { get; private set; } = new Board();
         public PieceColor CurrentTurn { get; private set; } = PieceColor.White;
@@ -13,14 +14,17 @@ namespace Checkers.Services
         public int WhiteScore { get; private set; }
         public int BlackScore { get; private set; }
 
-        public GameService(IMoveGenerator moveGenerator)
+        public GameService(IMoveGenerator moveGenerator, int boardSize = 8)
         {
             _moveGenerator = moveGenerator;
+            _boardSize = boardSize;
         }
+
+        public void SetBoardSize(int size) => _boardSize = size;
 
         public void StartNewGame()
         {
-            Board = new Board();
+            Board = new Board(_boardSize);
             Board.InitializeStartingPosition();
             CurrentTurn = PieceColor.White;
             GameState = GameState.InProgress;
@@ -28,7 +32,7 @@ namespace Checkers.Services
 
         public void RestoreFromRecord(GameRecord record)
         {
-            Board = new Board();
+            Board = new Board(record.BoardSize);
             foreach (var cell in record.Cells)
                 Board.SetPiece(new Position(cell.Row, cell.Col), new Piece(cell.Color, cell.Type));
 
@@ -36,6 +40,7 @@ namespace Checkers.Services
             GameState = record.GameState;
             WhiteScore = record.WhiteScore;
             BlackScore = record.BlackScore;
+            _boardSize = record.BoardSize;
         }
 
         public GameRecord CreateRecord(int elapsedSeconds) => new()
@@ -45,6 +50,7 @@ namespace Checkers.Services
             ElapsedSeconds = elapsedSeconds,
             WhiteScore = WhiteScore,
             BlackScore = BlackScore,
+            BoardSize = _boardSize,
             Cells = Board.GetAllPieces()
                 .Select(p => new CellRecord
                 {

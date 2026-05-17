@@ -7,7 +7,7 @@ namespace Checkers.Services
     {
         public bool IsValidMove(Board board, Move move)
         {
-            if (!move.From.IsWithinBounds() || !move.To.IsWithinBounds())
+            if (!move.From.IsWithinBounds(board.Size) || !move.To.IsWithinBounds(board.Size))
                 return false;
 
             var piece = board.GetPiece(move.From);
@@ -64,7 +64,6 @@ namespace Checkers.Services
         {
             int rowDir = Math.Sign(to.Row - from.Row);
             int colDir = Math.Sign(to.Col - from.Col);
-
             var current = new Position(from.Row + rowDir, from.Col + colDir);
 
             while (!current.Equals(to))

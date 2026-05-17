@@ -2,13 +2,18 @@
 
 namespace Checkers.Models
 {
-    // Represents the 8x8 checkers board and manages piece placement.
-
     public class Board
     {
-        public const int Size = 8;
+        public static int DefaultSize => 8;
+        public int Size { get; }
 
-        private readonly Piece?[,] _cells = new Piece?[Size, Size];
+        private readonly Piece?[,] _cells;
+
+        public Board(int size = 8)
+        {
+            Size = size;
+            _cells = new Piece?[Size, Size];
+        }
 
         public Piece? GetPiece(Position position) =>
             _cells[position.Row, position.Col];
@@ -48,14 +53,11 @@ namespace Checkers.Models
 
         public Board Clone()
         {
-            var clone = new Board();
+            var clone = new Board(Size);
             foreach (var (position, piece) in GetAllPieces())
                 clone.SetPiece(position, piece.Clone());
             return clone;
         }
-
-        // Sets up the standard starting position for checkers.
-        // Black pieces occupy rows 0–2, white pieces occupy rows 5–7.
 
         public void InitializeStartingPosition()
         {
@@ -63,8 +65,10 @@ namespace Checkers.Models
                 for (int col = 0; col < Size; col++)
                     _cells[row, col] = null;
 
-            PlacePiecesForColor(PieceColor.Black, startRow: 0, endRow: 2);
-            PlacePiecesForColor(PieceColor.White, startRow: 5, endRow: 7);
+            int rows = (Size / 2) - 1;
+
+            PlacePiecesForColor(PieceColor.Black, 0, rows - 1);
+            PlacePiecesForColor(PieceColor.White, Size - rows, Size - 1);
         }
 
         private void PlacePiecesForColor(PieceColor color, int startRow, int endRow)

@@ -49,12 +49,9 @@ namespace Checkers.Services
             if (piece is null) yield break;
 
             if (piece.IsKing)
-            {
                 foreach (var move in GetKingMoves(board, from))
                     yield return move;
-            }
             else
-            {
                 foreach (var direction in GetManDirections(piece))
                 {
                     var to = new Position(from.Row + direction.Row, from.Col + direction.Col);
@@ -62,7 +59,6 @@ namespace Checkers.Services
                     if (_validator.IsValidMove(board, move))
                         yield return move;
                 }
-            }
         }
 
         private IEnumerable<Move> GetKingMoves(Board board, Position from)
@@ -76,7 +72,7 @@ namespace Checkers.Services
                     while (true)
                     {
                         var to = new Position(from.Row + rowDir * step, from.Col + colDir * step);
-                        if (!to.IsWithinBounds()) break;
+                        if (!to.IsWithinBounds(board.Size)) break;
                         if (!board.IsEmpty(to)) break;
 
                         var move = new Move(from, to);
@@ -94,10 +90,8 @@ namespace Checkers.Services
             if (piece is null) yield break;
 
             if (piece.IsKing)
-            {
                 foreach (var move in GetKingCaptures(board, from))
                     yield return move;
-            }
             else
             {
                 int[] deltas = [-1, 1];
@@ -121,12 +115,12 @@ namespace Checkers.Services
                 foreach (int colDir in dirs)
                 {
                     Position? capturedPos = null;
-
                     int step = 1;
+
                     while (true)
                     {
                         var current = new Position(from.Row + rowDir * step, from.Col + colDir * step);
-                        if (!current.IsWithinBounds()) break;
+                        if (!current.IsWithinBounds(board.Size)) break;
 
                         var currentPiece = board.GetPiece(current);
 
@@ -142,8 +136,7 @@ namespace Checkers.Services
 
                         if (capturedPos is not null)
                         {
-                            var to = current;
-                            var move = new Move(from, to, capturedPos);
+                            var move = new Move(from, current, capturedPos);
                             if (_validator.IsValidMove(board, move))
                                 yield return move;
                         }

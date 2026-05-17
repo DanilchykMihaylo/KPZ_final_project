@@ -1,5 +1,6 @@
 ﻿using System.Collections.ObjectModel;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Threading;
 using Checkers.Models;
 using Checkers.Models.Enums;
@@ -11,6 +12,8 @@ namespace Checkers.ViewModels
     {
         private readonly IGameService _gameService;
         private readonly IGamePersistenceService _persistenceService;
+        private readonly ISettingsService _settingsService;
+        private readonly IThemeService _themeService;
         private readonly DispatcherTimer _timer;
 
         private CellViewModel? _selectedCell;
@@ -20,6 +23,8 @@ namespace Checkers.ViewModels
         private int _elapsedSeconds;
         private bool _canLoad;
         private double _cellSize;
+        private int _boardSize;
+        private ThemeColors _themeColors = new();
         private List<Move> _availableMoves = [];
 
         public ObservableCollection<CellViewModel> Cells { get; } = [];
@@ -29,6 +34,7 @@ namespace Checkers.ViewModels
         public ICommand NewGameCommand { get; }
         public ICommand SaveGameCommand { get; }
         public ICommand LoadGameCommand { get; }
+        public ICommand OpenSettingsCommand { get; }
 
         public string StatusMessage
         {
@@ -77,13 +83,34 @@ namespace Checkers.ViewModels
             }
         }
 
+        public int BoardSize
+        {
+            get => _boardSize;
+            private set => SetField(ref _boardSize, value);
+        }
+
         public int WhiteScore => _gameService.WhiteScore;
         public int BlackScore => _gameService.BlackScore;
 
-        public GameViewModel(IGameService gameService, IGamePersistenceService persistenceService)
+        public Brush LightCellBrush => BrushFrom(_themeColors.LightCell);
+        public Brush DarkCellBrush => BrushFrom(_themeColors.DarkCell);
+        public Brush WhitePieceBrush => BrushFrom(_themeColors.WhitePiece);
+        public Brush BlackPieceBrush => BrushFrom(_themeColors.BlackPiece);
+        public Brush BackgroundBrush => BrushFrom(_themeColors.Background);
+        public Brush PanelBrush => BrushFrom(_themeColors.PanelBackground);
+
+        public event Action? SettingsRequested;
+
+        public GameViewModel(
+            IGameService gameService,
+            IGamePersistenceService persistenceService,
+            ISettingsService settingsService,
+            IThemeService themeService)
         {
             _gameService = gameService;
             _persistenceService = persistenceService;
+            _settingsService = settingsService;
+            _themeService = themeService;
 
             _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             _timer.Tick += (_, _) => ElapsedSeconds++;
@@ -92,17 +119,51 @@ namespace Checkers.ViewModels
             NewGameCommand = new RelayCommand(OnNewGame);
             SaveGameCommand = new RelayCommand(OnSaveGame);
             LoadGameCommand = new RelayCommand(OnLoadGame);
+            OpenSettingsCommand = new RelayCommand(OnOpenSettings);
 
+            ApplySettings(_settingsService.Current);
             InitializeCells();
             CanLoad = _persistenceService.SaveExists();
             StartGame();
         }
 
+        public void ApplySettings(AppSettings settings)
+        {
+            _themeColors = _themeService.GetColors(settings.Theme);
+            _boardSize = settings.BoardSize;
+            _gameService.SetBoardSize(settings.BoardSize);
+
+            NotifyThemeChanged();
+            BoardSize = settings.BoardSize;
+
+            Cells.Clear();
+            Pieces.Clear();
+            InitializeCells();
+
+            StartGame();
+        }
+
+        private void RebuildCells()
+        {
+            Cells.Clear();
+            InitializeCells();
+        }
+
         private void InitializeCells()
         {
-            for (int row = 0; row < Board.Size; row++)
-                for (int col = 0; col < Board.Size; col++)
+            for (int row = 0; row < _boardSize; row++)
+                for (int col = 0; col < _boardSize; col++)
                     Cells.Add(new CellViewModel(row, col));
+        }
+
+        private void NotifyThemeChanged()
+        {
+            OnPropertyChanged(nameof(LightCellBrush));
+            OnPropertyChanged(nameof(DarkCellBrush));
+            OnPropertyChanged(nameof(WhitePieceBrush));
+            OnPropertyChanged(nameof(BlackPieceBrush));
+            OnPropertyChanged(nameof(BackgroundBrush));
+            OnPropertyChanged(nameof(PanelBrush));
         }
 
         private void StartGame()
@@ -120,6 +181,7 @@ namespace Checkers.ViewModels
         }
 
         private void OnNewGame() => StartGame();
+        private void OnOpenSettings() => SettingsRequested?.Invoke();
 
         private void OnSaveGame()
         {
@@ -135,6 +197,10 @@ namespace Checkers.ViewModels
 
             _gameService.RestoreFromRecord(record);
             ElapsedSeconds = record.ElapsedSeconds;
+            _boardSize = record.BoardSize;
+            BoardSize = record.BoardSize;
+
+            RebuildCells();
             _timer.Start();
             ClearSelection();
             ClearLastMoveHighlight();
@@ -192,7 +258,6 @@ namespace Checkers.ViewModels
 
             var from = new Position(_selectedCell!.Row, _selectedCell.Col);
             var to = new Position(targetCell.Row, targetCell.Col);
-
             var movingPiece = Pieces.FirstOrDefault(p => p.Row == from.Row && p.Col == from.Col);
 
             ClearSelection();
@@ -271,7 +336,8 @@ namespace Checkers.ViewModels
 
             foreach (var (position, boardPiece) in boardPieces)
             {
-                var existing = Pieces.FirstOrDefault(p => p.Row == position.Row && p.Col == position.Col);
+                var existing = Pieces.FirstOrDefault(p =>
+                    p.Row == position.Row && p.Col == position.Col);
 
                 if (existing is not null)
                 {
@@ -330,6 +396,9 @@ namespace Checkers.ViewModels
         private double RowToY(int row) => row * _cellSize;
 
         private CellViewModel GetCell(int row, int col) =>
-            Cells[row * Board.Size + col];
+            Cells[row * _boardSize + col];
+
+        private static SolidColorBrush BrushFrom(string hex) =>
+            new(ColorConverter.ConvertFromString(hex) is Color c ? c : Colors.Transparent);
     }
 }
