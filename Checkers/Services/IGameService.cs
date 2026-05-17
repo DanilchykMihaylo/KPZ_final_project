@@ -11,6 +11,7 @@ namespace Checkers.Services
         int WhiteScore { get; }
         int BlackScore { get; }
 
+        void SetBoardSize(int size);
         void StartNewGame();
         void RestoreFromRecord(GameRecord record);
         GameRecord CreateRecord(int elapsedSeconds);

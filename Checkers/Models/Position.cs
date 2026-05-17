@@ -1,7 +1,5 @@
 ﻿namespace Checkers.Models
 {
-    // Represents an immutable cell position on the board.
-    
     public sealed class Position
     {
         public int Row { get; }
@@ -13,7 +11,7 @@
             Col = col;
         }
 
-        public bool IsWithinBounds(int boardSize = 8) =>
+        public bool IsWithinBounds(int boardSize) =>
             Row >= 0 && Row < boardSize &&
             Col >= 0 && Col < boardSize;
 

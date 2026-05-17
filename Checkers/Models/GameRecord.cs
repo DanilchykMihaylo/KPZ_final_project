@@ -9,6 +9,7 @@ namespace Checkers.Models
         public int ElapsedSeconds { get; set; }
         public int WhiteScore { get; set; }
         public int BlackScore { get; set; }
+        public int BoardSize { get; set; } = 8;
         public List<CellRecord> Cells { get; set; } = [];
     }
 

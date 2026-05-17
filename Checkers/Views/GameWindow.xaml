@@ -3,13 +3,15 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:converters="clr-namespace:Checkers.Converters"
         xmlns:behaviors="clr-namespace:Checkers.Behaviors"
-        Title="Шашки" Height="720" Width="720"
+        Title="Шашки" Height="760" Width="760"
         ResizeMode="CanMinimize"
-        Background="#1A0E07">
+        Background="{Binding BackgroundBrush}">
 
     <Window.Resources>
-        <converters:PieceColorToBrushConverter x:Key="PieceColorToBrush"/>
         <converters:BoolToVisibilityConverter x:Key="BoolToVisibility"/>
+        <converters:PieceColorToBrushConverter x:Key="PieceColorToBrush"/>
+        <converters:PieceColorToBoolConverter x:Key="PieceColorToBool"/>
+        <converters:EqualToIntConverter x:Key="EqualToIntConverter"/>
     </Window.Resources>
 
     <DockPanel Margin="12">
@@ -22,79 +24,91 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <!-- Чорні -->
-            <Border Grid.Column="0" Background="#2C1A0A" CornerRadius="8" Padding="12 8">
+            <Border Grid.Column="0" Background="{Binding PanelBrush}"
+                    CornerRadius="8" Padding="12 8">
                 <StackPanel HorizontalAlignment="Center">
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                        <Ellipse Width="24" Height="24" Fill="#1E1008" Margin="0 0 8 0"
-                         Stroke="#555" StrokeThickness="1.5"/>
+                        <Ellipse Width="24" Height="24"
+                                 Fill="{Binding BlackPieceBrush}"
+                                 Margin="0 0 8 0" Stroke="#555" StrokeThickness="1.5"/>
                         <TextBlock Foreground="Wheat" FontSize="16" VerticalAlignment="Center">
-                    <Run Text="Чорні: "/>
-                    <Run Text="{Binding BlackPieceCount, Mode=OneWay}" FontWeight="Bold"/>
+                            <Run Text="Чорні: "/>
+                            <Run Text="{Binding BlackPieceCount, Mode=OneWay}" FontWeight="Bold"/>
                         </TextBlock>
                     </StackPanel>
-                    <TextBlock Foreground="#AAA" FontSize="13" HorizontalAlignment="Center" Margin="0 4 0 0">
-                <Run Text="Перемог: "/>
-                <Run Text="{Binding BlackScore, Mode=OneWay}" FontWeight="Bold" Foreground="Wheat"/>
+                    <TextBlock Foreground="#AAA" FontSize="13"
+                               HorizontalAlignment="Center" Margin="0 4 0 0">
+                        <Run Text="Перемог: "/>
+                        <Run Text="{Binding BlackScore, Mode=OneWay}"
+                             FontWeight="Bold" Foreground="Wheat"/>
                     </TextBlock>
                 </StackPanel>
             </Border>
 
-            <!-- Центр: статус, таймер, кнопки -->
             <StackPanel Grid.Column="1" HorizontalAlignment="Center"
-                VerticalAlignment="Center" Margin="16 0">
+                        VerticalAlignment="Center" Margin="16 0">
                 <TextBlock Text="{Binding StatusMessage}"
-                   Foreground="Wheat" FontSize="16" FontWeight="Bold"
-                   HorizontalAlignment="Center"/>
+                           Foreground="Wheat" FontSize="16" FontWeight="Bold"
+                           HorizontalAlignment="Center"/>
                 <TextBlock Text="{Binding TimerDisplay, Mode=OneWay}"
-                   Foreground="#F4D03F" FontSize="22" FontWeight="Bold"
-                   HorizontalAlignment="Center" Margin="0 4 0 0"
-                   FontFamily="Consolas"/>
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0 6 0 0">
+                           Foreground="#F4D03F" FontSize="22" FontWeight="Bold"
+                           HorizontalAlignment="Center" Margin="0 4 0 0"
+                           FontFamily="Consolas"/>
+                <StackPanel Orientation="Horizontal"
+                            HorizontalAlignment="Center" Margin="0 6 0 0">
                     <Button Content="Нова гра" Command="{Binding NewGameCommand}"
-                    Padding="10 5" FontSize="12"
-                    Background="#8B4513" Foreground="Wheat"
-                    BorderBrush="#5C2D0A" Cursor="Hand" Margin="0 0 4 0"/>
+                            Padding="8 5" FontSize="12"
+                            Background="#8B4513" Foreground="Wheat"
+                            BorderBrush="#5C2D0A" Cursor="Hand" Margin="0 0 4 0"/>
                     <Button Content="💾" Command="{Binding SaveGameCommand}"
-                    Padding="10 5" FontSize="12" ToolTip="Зберегти гру"
-                    Background="#2C6E49" Foreground="Wheat"
-                    BorderBrush="#1B4332" Cursor="Hand" Margin="0 0 4 0"/>
+                            Padding="8 5" FontSize="12" ToolTip="Зберегти гру"
+                            Background="#2C6E49" Foreground="Wheat"
+                            BorderBrush="#1B4332" Cursor="Hand" Margin="0 0 4 0"/>
                     <Button Content="📂" Command="{Binding LoadGameCommand}"
-                    Padding="10 5" FontSize="12" ToolTip="Завантажити гру"
-                    Background="#1A5276" Foreground="Wheat"
-                    BorderBrush="#154360" Cursor="Hand"
-                    IsEnabled="{Binding CanLoad, Mode=OneWay}"/>
+                            Padding="8 5" FontSize="12" ToolTip="Завантажити гру"
+                            Background="#1A5276" Foreground="Wheat"
+                            BorderBrush="#154360" Cursor="Hand" Margin="0 0 4 0"
+                            IsEnabled="{Binding CanLoad, Mode=OneWay}"/>
+                    <Button Content="⚙️" Command="{Binding OpenSettingsCommand}"
+                            Padding="8 5" FontSize="12" ToolTip="Налаштування"
+                            Background="#4A235A" Foreground="Wheat"
+                            BorderBrush="#311B4A" Cursor="Hand"/>
                 </StackPanel>
             </StackPanel>
 
-            <!-- Білі -->
-            <Border Grid.Column="2" Background="#2C1A0A" CornerRadius="8" Padding="12 8">
+            <Border Grid.Column="2" Background="{Binding PanelBrush}"
+                    CornerRadius="8" Padding="12 8">
                 <StackPanel HorizontalAlignment="Center">
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                        <Ellipse Width="24" Height="24" Fill="#F0E6D2" Margin="0 0 8 0"
-                         Stroke="#AAA" StrokeThickness="1.5"/>
+                        <Ellipse Width="24" Height="24"
+                                 Fill="{Binding WhitePieceBrush}"
+                                 Margin="0 0 8 0" Stroke="#AAA" StrokeThickness="1.5"/>
                         <TextBlock Foreground="Wheat" FontSize="16" VerticalAlignment="Center">
-                    <Run Text="Білі: "/>
-                    <Run Text="{Binding WhitePieceCount, Mode=OneWay}" FontWeight="Bold"/>
+                            <Run Text="Білі: "/>
+                            <Run Text="{Binding WhitePieceCount, Mode=OneWay}" FontWeight="Bold"/>
                         </TextBlock>
                     </StackPanel>
-                    <TextBlock Foreground="#AAA" FontSize="13" HorizontalAlignment="Center" Margin="0 4 0 0">
-                <Run Text="Перемог: "/>
-                <Run Text="{Binding WhiteScore, Mode=OneWay}" FontWeight="Bold" Foreground="Wheat"/>
+                    <TextBlock Foreground="#AAA" FontSize="13"
+                               HorizontalAlignment="Center" Margin="0 4 0 0">
+                        <Run Text="Перемог: "/>
+                        <Run Text="{Binding WhiteScore, Mode=OneWay}"
+                             FontWeight="Bold" Foreground="Wheat"/>
                     </TextBlock>
                 </StackPanel>
             </Border>
         </Grid>
 
-        <!-- Дошка + фігури -->
+        <!-- Дошка -->
         <Grid x:Name="BoardContainer"
-      Width="{Binding ActualHeight, RelativeSource={RelativeSource Self}}">
+              Width="{Binding ActualHeight, RelativeSource={RelativeSource Self}}">
 
-            <!-- Клітинки дошки -->
             <ItemsControl ItemsSource="{Binding Cells}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
-                        <UniformGrid Rows="8" Columns="8"/>
+                        <UniformGrid Rows="{Binding DataContext.BoardSize,
+                                         RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                     Columns="{Binding DataContext.BoardSize,
+                                         RelativeSource={RelativeSource AncestorType=ItemsControl}}"/>
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
 
@@ -103,10 +117,14 @@
                         <Border BorderThickness="0">
                             <Border.Style>
                                 <Style TargetType="Border">
-                                    <Setter Property="Background" Value="#F0E6D2"/>
+                                    <Setter Property="Background"
+                                            Value="{Binding DataContext.LightCellBrush,
+                                                RelativeSource={RelativeSource AncestorType=ItemsControl}}"/>
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding IsDark}" Value="True">
-                                            <Setter Property="Background" Value="#5C3317"/>
+                                            <Setter Property="Background"
+                                                    Value="{Binding DataContext.DarkCellBrush,
+                                                        RelativeSource={RelativeSource AncestorType=ItemsControl}}"/>
                                         </DataTrigger>
                                         <DataTrigger Binding="{Binding IsSelected}" Value="True">
                                             <Setter Property="Background" Value="#F4D03F"/>
@@ -139,7 +157,8 @@
                                         <Grid Background="Transparent"
                                               HorizontalAlignment="Stretch"
                                               VerticalAlignment="Stretch">
-                                            <ContentPresenter/>
+                                            <ContentPresenter HorizontalAlignment="Stretch"
+                                                              VerticalAlignment="Stretch"/>
                                         </Grid>
                                     </ControlTemplate>
                                 </Button.Template>
@@ -149,7 +168,6 @@
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
 
-            <!-- Фігури на Canvas поверх дошки -->
             <ItemsControl ItemsSource="{Binding Pieces}"
                           IsHitTestVisible="False">
                 <ItemsControl.ItemsPanel>
@@ -164,10 +182,12 @@
                                 Value="{Binding X}"/>
                         <Setter Property="behaviors:PieceAnimationBehavior.AnimatedY"
                                 Value="{Binding Y}"/>
-                        <Setter Property="Width" Value="{Binding DataContext.CellSize,
-                            RelativeSource={RelativeSource AncestorType=ItemsControl}}"/>
-                        <Setter Property="Height" Value="{Binding DataContext.CellSize,
-                            RelativeSource={RelativeSource AncestorType=ItemsControl}}"/>
+                        <Setter Property="Width"
+                                Value="{Binding DataContext.CellSize,
+                                    RelativeSource={RelativeSource AncestorType=ItemsControl}}"/>
+                        <Setter Property="Height"
+                                Value="{Binding DataContext.CellSize,
+                                    RelativeSource={RelativeSource AncestorType=ItemsControl}}"/>
                     </Style>
                 </ItemsControl.ItemContainerStyle>
 
@@ -178,23 +198,22 @@
                             <Grid.RenderTransform>
                                 <ScaleTransform x:Name="PieceScale" ScaleX="1" ScaleY="1"/>
                             </Grid.RenderTransform>
-
                             <Grid.Triggers>
                                 <EventTrigger RoutedEvent="Loaded">
                                     <BeginStoryboard>
                                         <Storyboard>
                                             <DoubleAnimation
-                                                Storyboard.TargetName="PieceScale"
-                                                Storyboard.TargetProperty="ScaleX"
-                                                From="0" To="1" Duration="0:0:0.3">
+                                Storyboard.TargetName="PieceScale"
+                                Storyboard.TargetProperty="ScaleX"
+                                From="0" To="1" Duration="0:0:0.3">
                                                 <DoubleAnimation.EasingFunction>
                                                     <BackEase EasingMode="EaseOut" Amplitude="0.4"/>
                                                 </DoubleAnimation.EasingFunction>
                                             </DoubleAnimation>
                                             <DoubleAnimation
-                                                Storyboard.TargetName="PieceScale"
-                                                Storyboard.TargetProperty="ScaleY"
-                                                From="0" To="1" Duration="0:0:0.3">
+                                Storyboard.TargetName="PieceScale"
+                                Storyboard.TargetProperty="ScaleY"
+                                From="0" To="1" Duration="0:0:0.3">
                                                 <DoubleAnimation.EasingFunction>
                                                     <BackEase EasingMode="EaseOut" Amplitude="0.4"/>
                                                 </DoubleAnimation.EasingFunction>
@@ -205,13 +224,22 @@
                             </Grid.Triggers>
 
                             <Ellipse Margin="6"
-                                     Fill="{Binding Color, Converter={StaticResource PieceColorToBrush}}"
-                                     HorizontalAlignment="Stretch"
-                                     VerticalAlignment="Stretch">
+                     HorizontalAlignment="Stretch"
+                     VerticalAlignment="Stretch">
                                 <Ellipse.Style>
                                     <Style TargetType="Ellipse">
                                         <Setter Property="StrokeThickness" Value="0"/>
+                                        <Setter Property="Fill"
+                                Value="{Binding DataContext.WhitePieceBrush,
+                                    RelativeSource={RelativeSource AncestorType=ItemsControl}}"/>
                                         <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Color,
+                                Converter={StaticResource PieceColorToBool}}"
+                                         Value="True">
+                                                <Setter Property="Fill"
+                                        Value="{Binding DataContext.BlackPieceBrush,
+                                            RelativeSource={RelativeSource AncestorType=ItemsControl}}"/>
+                                            </DataTrigger>
                                             <DataTrigger Binding="{Binding IsKing}" Value="True">
                                                 <Setter Property="Stroke" Value="Gold"/>
                                                 <Setter Property="StrokeThickness" Value="4"/>
@@ -222,12 +250,13 @@
                             </Ellipse>
 
                             <TextBlock Text="♛"
-                                       FontSize="20"
-                                       HorizontalAlignment="Center"
-                                       VerticalAlignment="Center"
-                                       Foreground="Gold"
-                                       Visibility="{Binding IsKing,
-                                           Converter={StaticResource BoolToVisibility}}"/>
+                       FontSize="20"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       Foreground="Gold"
+                       IsHitTestVisible="False"
+                       Visibility="{Binding IsKing,
+                           Converter={StaticResource BoolToVisibility}}"/>
                         </Grid>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
